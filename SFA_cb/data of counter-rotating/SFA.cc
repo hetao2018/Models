@@ -164,7 +164,7 @@ void Trajectory (double* time, double* AfP, double* AsP, double* AfS, double* As
 void Transform (double* LabX, double* LabY, double* PolfP, double* PolsP, double* PolfS, double* PolsS){
   for(int it = 0; it < nt; it ++){
     LabX[it] = PolfP[it] + PolsP[it];
-    LabY[it] = PolfS[it] + PolsS[it];
+    LabY[it] = PolfS[it] -  PolsS[it];
   }
 }
 //coordination transform
