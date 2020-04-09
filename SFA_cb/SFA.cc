@@ -17,8 +17,11 @@
 // #define Phi 1.
 
 //global parameter
-#define dt 0.6 //1fs=42a.u. 0.6a.u.~0.014fs
-#define nt 5001
+#define nt 28001
+#define t0 0.
+#define t1 20000
+#define tc 10000
+//const double dt = (t1-t0)/(nt-1) //1fs=42a.u. 0.6a.u.~0.014fs
 
 #define Ip 0.58
 
@@ -29,7 +32,7 @@
 //Creation_Time_Grid
 void Creation_Time_Grid (double* time){
 
-  double t0 = - dt * (nt - 1) / 2;
+  double dt = (t1-t0)/(nt-1);
   //time axis
   for (int it = 0; it < nt; it ++) {
     time[it] = t0 + it * dt;
@@ -45,11 +48,11 @@ void Creation_Potential (double* time, double* AfP, double* AsP, double* AfS, do
   double duration0 = 2. * M_PI / w0 * nc0;
   //define the potential of fundamental electric field
   for (int it = 0; it < nt; it ++) {
-    if (time[it] >= -duration0 / 2. && time[it] < duration0 / 2.) {
-      AfP[it] = A0 * sin(w0 * (time[it]-duration0/2.) / (2.* nc0)) *
-       sin(w0 * (time[it]-duration0/2.) / (2.* nc0)) * sin(w0 * (time[it]-duration0/2.));
-      AfS[it] = A0 * sin(w0 * (time[it]-duration0/2.) / (2.* nc0)) *
-       sin(w0 * (time[it]-duration0/2.) / (2.* nc0)) * cos(w0 * (time[it]-duration0/2.));
+     auto phi = w0 * (time[it] - tc + duration0 / 2.);
+    if (phi >= 0 && phi < w0 * duration0) {
+       auto e = sin(phi / (2.*nc0));
+      AfP[it] = A0 * e * e * sin(phi);
+      AfS[it] = A0 * e * e * cos(phi);
     } else {
       AfP[it] = 0.;
       AfS[it] = 0.;
@@ -83,13 +86,14 @@ void Creation_Electric_Field (double* time, double* EfP, double* EsP, double* Ef
   double duration0 = 2. * M_PI / w0 * nc0;
   //define fundamental electric field analytically
     for (int it = 0; it < nt; it ++){
-      if(time[it] >= -duration0 / 2. && time[it] < duration0 / 2. ){
-        EfP[it] = -1 * A0 * w0 / nc0 * sin(w0 * (time[it]-duration0/2.) / (2*nc0)) * sin(w0 * (time[it]-duration0/2.))
-                     * cos(w0 * (time[it]-duration0/2.) / (2*nc0)) - A0 * w0 * sin(w0 * (time[it]-duration0/2.) / (2*nc0))
-                     * sin(w0 * (time[it]-duration0/2.) / (2*nc0)) * cos(w0 * (time[it]-duration0/2.));
-        EfS[it] = -1 * A0 * w0 / nc0 * sin(w0 * (time[it]-duration0/2.) / (2*nc0)) * cos(w0 * (time[it]-duration0/2.))
-                     * cos(w0 * (time[it]-duration0/2.) / (2*nc0)) + A0 * w0 * sin(w0 * (time[it]-duration0/2.) / (2*nc0))
-                     * sin(w0 * (time[it]-duration0/2.) / (2*nc0)) * sin(w0 * (time[it]-duration0/2.));
+      auto phi = w0 * (time[it] - tc + duration0 / 2.);
+      if(phi >= 0 && phi < w0 * duration0){
+        EfP[it] = -1 * A0 * w0 / nc0 * sin(phi / (2*nc0)) * sin(phi)
+                     * cos(phi / (2*nc0)) - A0 * w0 * sin(phi / (2*nc0))
+                     * sin(phi / (2*nc0)) * cos(phi);
+        EfS[it] = -1 * A0 * w0 / nc0 * sin(phi / (2*nc0)) * cos(phi)
+                     * cos(phi / (2*nc0)) + A0 * w0 * sin(phi / (2*nc0))
+                     * sin(phi / (2*nc0)) * sin(phi);
       }else{
         EfP[it] = 0.;
         EfS[it] = 0.;
@@ -163,10 +167,37 @@ void Trajectory (double* time, double* AfP, double* AsP, double* AfS, double* As
 //coordination transform
 void Transform (double* LabX, double* LabY, double* PolfP, double* PolsP, double* PolfS, double* PolsS){
   for(int it = 0; it < nt; it ++){
-    LabX[it] = PolfP[it] + PolsP[it];
-    LabY[it] = PolfS[it] + PolsS[it];
+    LabX[it] =  0.;
+    LabY[it] = PolfP[it];
   }
 }
+
+// prepare pulse & Ain
+void Prepare_Ain (double* intA1x, double* intA1y, double* intA2x, double* intA2y,double* Ax, double* Ay){
+     double dt = (t1-t0)/(nt-1); 
+   for (int it = 0; it < nt; it++){
+    if (it == 0){
+     intA1x[it] = 0.;
+     intA1y[it] = 0.;
+     intA2x[it] = 0.;
+     intA2y[it] = 0.;
+   }else {
+        intA1x[it] = intA1x[it-1] + Ax[it-1] * dt;
+        intA1y[it] = intA1y[it-1] + Ay[it-1] * dt;
+        intA2x[it] = intA2x[it-1] + Ax[it-1] * Ax[it-1] * dt;
+        intA2y[it] = intA2y[it-1] + Ay[it-1] * Ay[it-1] * dt;
+      }  
+   }
+  }
+
+// void action_S (double psx, double psy, int itau, int it, int itp) {
+//     return (0.5 * (psx * psx + psy * psy + Ip)) * itau * dt
+//             + psx * (intA1x[it] - intA1x[itp]) + psy * (intA1y[it] - intA1y[itp])
+//             + 0.5 * (intA2x[it] - intA2x[itp]) + 0.5 * (intA2y[it] - intA2y[itp]) ;
+// }
+
+
+
 //coordination transform
 //定义计算S方向矩阵元函数
 inline complex dipolex(double px, double py, double Ax, double Ay){
@@ -180,30 +211,32 @@ inline complex dipoley(double px, double py, double Ax, double Ay){
 }
 
 //calculate high-harmonic generation
-void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy){
+void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy,
+           double* intA1x, double* intA1y, double* intA2x, double* intA2y){
   complex HHGx[nt];
   complex HHGy[nt];
+  const double epsilon = 0.1;
+  double dt = (t1-t0)/(nt-1);
   for (int it = 0; it < nt; it ++){
     HHGx[it] = 0.;
     HHGy[it] = 0.;
-    complex S = 0.;
-    double Aintx = 0.;
-    double Ainty = 0.;
     for (int itau = 1; itau <= it; itau ++){
       int itp = it - itau; //ionization instant
+      double tau = itau * dt;
       //double psx = (Alphax[itp] - Alphax[it]) / (itau * dt);
       //double psy = (Alphay[itp] - Alphay[it]) / (itau * dt);
-      Aintx += Ax[itp] * dt;
-      Ainty += Ay[itp] * dt;
-      double psx = -Aintx / (itau * dt);
-      double psy = -Ainty / (itau * dt);
-      S += (0.5*((psx + Ax[itp]) * (psx + Ax[itp]) + (psy + Ay[itp]) * (psy + Ay[itp])) + Ip) * (dt);
+      double psx = - (intA1x[it] - intA1x[itp]) / tau;
+      double psy = - (intA1y[it] - intA1y[itp]) / tau;
+      double S = (0.5 * (psx * psx + psy * psy + Ip)) * tau
+            + psx * (intA1x[it] - intA1x[itp]) + psy * (intA1y[it] - intA1y[itp])
+            + 0.5 * (intA2x[it] - intA2x[itp]) + 0.5 * (intA2y[it] - intA2y[itp]) ;
+      // S += (0.5*((psx + Ax[itp]) * (psx + Ax[itp]) + (psy + Ay[itp]) * (psy + Ay[itp])) + Ip) * (dt);
 
       HHGx[it] += conj(dipolex(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ay[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
-      * exp(-complex(0., 1.) * S) * pow(2.*M_PI/(itau * dt)*(1./complex(0.,1.)), 1.5);
+      * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
 
       HHGy[it] += conj(dipoley(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ax[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
-      * exp(-complex(0., 1.) * S) * pow(2.*M_PI/(itau * dt)*(1./complex(0.,1.)), 1.5);
+      * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
     }
     HHGx[it] *= -complex(0., 1.) * dt;
     HHGy[it] *= -complex(0., 1.) * dt;
@@ -216,7 +249,6 @@ void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy
 //calculate high-harmonic generation
 
 int main(int argc, char const *argv[]){
-
   double* time = new double[nt];
 
   double* AfP = new double[nt];
@@ -229,6 +261,11 @@ int main(int argc, char const *argv[]){
 
   double* EfS = new double[nt];
   double* EsS = new double[nt];
+    
+  double* intA1x = new double[nt];
+  double* intA1y = new double[nt];
+  double* intA2x = new double[nt];
+  double* intA2y = new double[nt];
 
   // double* Alphaf = new double[nt];
   // double* Alphas = new double[nt];
@@ -253,9 +290,9 @@ int main(int argc, char const *argv[]){
   char filename[256];
   FILE* file0 = fopen("parameter.dat","w");
 
-  for (int i = 0; i < 7; i ++){
+  for (int i = 0; i < 1; i ++){
 
-  Delta = 41.3 * 1.35 / 7 * i;
+  Delta = 41.3 * 1.35 / 1 * i;
 
   //Phi = 0.5 * M_PI / 40 * j;
 
@@ -265,14 +302,15 @@ int main(int argc, char const *argv[]){
   //Creation_Alpha(time, Alphaf, Alphas, Delta);
   Transform(Ax, Ay, AfP, AsP, AfS, AsS);
   Transform(Ex, Ey, EfP, EsP, EfS, EsS);
+  Prepare_Ain(intA1x, intA1y, intA2x, intA2y, Ax, Ay);
   //Transform(Alphax, Alphay, Alphaf, Alphas, Phi);
-  HHG(Ax, Ay, Ex, Ey, Dx, Dy);
+  HHG(Ax, Ay, Ex, Ey, Dx, Dy, intA1x, intA1y, intA2x, intA2y);
 
   sprintf(filename, "HHG_%d.dat", i);
   FILE* file1 = fopen(filename, "w");
   for (int it = 0; it < nt; it ++){
-    fprintf(file1, "%le %le %le %le %le %le %le\n",
-               time[it], Ex[it], Ey[it], Ax[it], Ay[it], Dx[it], Dy[it]);
+    fprintf(file1, "%le %le %le %le %le %le %le %le %le \n",
+               time[it], Ex[it], Ey[it], Ax[it], Ay[it], Dx[it], Dy[it], intA1x[it], intA1y[it]);
       }
     fclose(file1);
     printf("i = %d\n", i);
@@ -313,6 +351,10 @@ int main(int argc, char const *argv[]){
   delete[] AsS;
   delete[] AfS;
   delete[] time;
+  delete[] intA1x;
+  delete[] intA1y;
+  delete[] intA2x;
+  delete[] intA2y;
 
   return 0;
 }

@@ -1,11 +1,11 @@
 #include <iostream>
 #include <fstream>
 #include "../pulse.h"
-typedef Pulse_mono Pulse;
+typedef Pulse_sin2 Pulse;
 #include "../sfa.h"
 
 int main (int argc, char* argv[]) {
-  Pulse pulse (w0, E0);
+  Pulse pulse (w0, E0, tc, nc);
   SFA_HHG s;
   s.prepare_pulse (pulse);
   s.calc_hhg_dx ();

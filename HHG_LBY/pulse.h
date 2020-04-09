@@ -49,9 +49,9 @@ class Pulse_sin2 {
     if (phi >= 0 && phi < w * duration) {
       auto phi_m = (1. - 1./nc) * phi;
       auto phi_p = (1. + 1./nc) * phi;
-      result = - A0 / (4.*(nc*nc-1)*w)
-        * (2.*(1.-nc*nc) * cos (phi)
-           + nc * ((nc + 1.) * cos (phi_m) + (nc - 1.) * cos (phi_p)));
+      result = -1 * A0 * w / nc * sin(phi / (2*nc)) * sin(phi)
+                     * cos(phi / (2*nc)) - A0 * w * sin(phi / (2*nc))
+                     * sin(phi / (2*nc)) * cos(phi);
     }
     return result;
   }
