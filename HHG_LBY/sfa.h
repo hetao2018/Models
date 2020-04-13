@@ -45,11 +45,12 @@ class SFA_HHG {
         int itp = it - itau; // ionization time
         double ps = - (intA1[it] - intA1[itp]) / tau;
         double S = action_S (ps, itau, it, itp);
+        if (it % 1000 == 0 && itau % 1000 == 0){printf("dipoley: %f \n ", S);}
         d[it] += conj (dipole (ps + Af[it])) * dipole (ps + Af[itp]) * Ef[itp]
           * exp (- I * S) * pow (M_PI / (epsilon + I * tau / 2.), 1.5);
       }
       d[it] *= I * (-dt);
-      if (it % 100 == 0)
+      if (it % 1000 == 0)
         std::cout << "progress: " << 1.0 * it / nt << std::endl;
     }
   }

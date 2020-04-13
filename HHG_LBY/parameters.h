@@ -5,7 +5,7 @@ namespace parameters {
 #define complex std::complex<double>
 const complex I = complex (0., 1.);
 
-const double Ip = 0.5;
+const double Ip = 0.58;
 const double w0 = 0.057;
 const double E0 = 0.08;
 const int    nt = 28001;// 10001;

@@ -64,11 +64,11 @@ void Creation_Potential (double* time, double* AfP, double* AsP, double* AfS, do
   double duration1 = 2. * M_PI / w1 * nc1;
   //define the potential of fundamental electric field
   for (int it = 0; it < nt; it ++) {
-    if (time[it] >= -duration1 / 2. + Delta && time[it] < duration1 / 2. + Delta) {
-      AsP[it] = A1 * sin(w1 * (time[it]-Delta-duration1/2.) / (2.* nc1)) *
-       sin(w1 * (time[it]-Delta-duration1/2.) / (2.* nc1)) * sin(w1 * (time[it]-Delta-duration1/2.));
-      AsS[it] = A1 * sin(w1 * (time[it]-Delta-duration1/2.) / (2.* nc1)) *
-       sin(w1 * (time[it]-Delta-duration1/2.) / (2.* nc1)) * cos(w1 * (time[it]-Delta-duration1/2.));
+      auto phi = w1 * (time[it] - tc + duration1 / 2.);
+    if (phi >= 0 && phi < w1 * duration1) {
+       auto e = sin(phi / (2.*nc1));
+      AsP[it] = A1 * e * e * sin(phi);
+      AsS[it] = A1 * e * e * cos(phi);
     } else {
       AsP[it] = 0.;
       AsS[it] = 0.;
@@ -88,11 +88,11 @@ void Creation_Electric_Field (double* time, double* EfP, double* EsP, double* Ef
     for (int it = 0; it < nt; it ++){
       auto phi = w0 * (time[it] - tc + duration0 / 2.);
       if(phi >= 0 && phi < w0 * duration0){
-        EfP[it] = -1 * A0 * w0 / nc0 * sin(phi / (2*nc0)) * sin(phi)
-                     * cos(phi / (2*nc0)) - A0 * w0 * sin(phi / (2*nc0))
+        EfP[it] = -1 * A0 * w0 / (2*nc0) * sin(phi / nc0) * sin(phi)
+                     - A0 * w0 * sin(phi / (2*nc0))
                      * sin(phi / (2*nc0)) * cos(phi);
-        EfS[it] = -1 * A0 * w0 / nc0 * sin(phi / (2*nc0)) * cos(phi)
-                     * cos(phi / (2*nc0)) + A0 * w0 * sin(phi / (2*nc0))
+        EfS[it] = -1 * A0 * w0 / (2*nc0) * sin(phi / nc0) * cos(phi)
+                     + A0 * w0 * sin(phi / (2*nc0))
                      * sin(phi / (2*nc0)) * sin(phi);
       }else{
         EfP[it] = 0.;
@@ -105,15 +105,14 @@ void Creation_Electric_Field (double* time, double* EfP, double* EsP, double* Ef
     double duration1 = 2. * M_PI / w1 * nc1;
     //define second electric field analytically
     for (int it = 0; it < nt; it ++){
-      if(time[it] >= -duration1 / 2. + Delta && time[it] < duration1 / 2. + Delta){
-        EsP[it] = -1 * A1 * w1 / nc1 * sin(w1 * (time[it]-Delta-duration1/2.) / (2*nc1)) 
-                     * sin(w1 * (time[it]-Delta-duration1/2.)) * cos(w1 * (time[it]-Delta-duration1/2.) / (2*nc1)) 
-                     - A1 * w1 * sin(w1 * (time[it]-Delta-duration1/2.) / (2*nc1))
-                     * sin(w1 * (time[it]-Delta-duration1/2.) / (2*nc1)) * cos(w1 * (time[it]-Delta-duration1/2.));
-        EsS[it] = -1 * A1 * w1 / nc1 * sin(w1 * (time[it]-Delta-duration1/2.) / (2*nc1)) 
-                     * cos(w1 * (time[it]-Delta-duration1/2.)) * cos(w1 * (time[it]-Delta-duration1/2.) / (2*nc1)) 
-                     + A1 * w1 * sin(w1 * (time[it]-Delta-duration1/2.) / (2*nc1))
-                     * sin(w1 * (time[it]-Delta-duration1/2.) / (2*nc1)) * sin(w1 * (time[it]-Delta-duration1/2.));
+       auto phi = w1 * (time[it] - tc + duration1 / 2.);
+      if(phi >= 0 && phi < w1 * duration1){
+        EsP[it] = -1 * A1 * w1 / (2*nc1) * sin(phi / nc1) * sin(phi)
+                     - A1 * w1 * sin(phi / (2*nc1))
+                     * sin(phi / (2*nc1)) * cos(phi);
+        EsS[it] = -1 * A1 * w1 / (2*nc1) * sin(phi / nc1) * cos(phi)
+                     + A1 * w1 * sin(phi / (2*nc1))
+                     * sin(phi / (2*nc1)) * sin(phi);
       }else{
         EsP[it] = 0.;
         EsS[it] = 0.;
@@ -167,8 +166,8 @@ void Trajectory (double* time, double* AfP, double* AsP, double* AfS, double* As
 //coordination transform
 void Transform (double* LabX, double* LabY, double* PolfP, double* PolsP, double* PolfS, double* PolsS){
   for(int it = 0; it < nt; it ++){
-    LabX[it] =  0.;
-    LabY[it] = PolfP[it];
+    LabX[it] = PolfP[it];
+    LabY[it] = PolfS[it];
   }
 }
 
@@ -221,28 +220,28 @@ void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy
     HHGx[it] = 0.;
     HHGy[it] = 0.;
     for (int itau = 1; itau <= it; itau ++){
-      int itp = it - itau; //ionization instant
+          int itp = it - itau; //ionization instant
       double tau = itau * dt;
       //double psx = (Alphax[itp] - Alphax[it]) / (itau * dt);
       //double psy = (Alphay[itp] - Alphay[it]) / (itau * dt);
       double psx = - (intA1x[it] - intA1x[itp]) / tau;
       double psy = - (intA1y[it] - intA1y[itp]) / tau;
-      double S = (0.5 * (psx * psx + psy * psy + Ip)) * tau
+      double S = (0.5 * (psx * psx + psy * psy) + Ip) * tau
             + psx * (intA1x[it] - intA1x[itp]) + psy * (intA1y[it] - intA1y[itp])
             + 0.5 * (intA2x[it] - intA2x[itp]) + 0.5 * (intA2y[it] - intA2y[itp]) ;
       // S += (0.5*((psx + Ax[itp]) * (psx + Ax[itp]) + (psy + Ay[itp]) * (psy + Ay[itp])) + Ip) * (dt);
-
-      HHGx[it] += conj(dipolex(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ay[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
+      if (it % 1000 == 0 && itau % 1000 == 0){printf("psx&psy: %f \n ", S);}
+      HHGx[it] += conj(dipolex(psx, psy, Ax[it], Ay[it])) * dipolex(psx,psy,Ax[itp],Ay[itp])*Ex[itp]
       * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
 
-      HHGy[it] += conj(dipoley(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ax[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
+      HHGy[it] += conj(dipoley(psx, psy, Ax[it], Ay[it])) * dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp]
       * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
     }
     HHGx[it] *= -complex(0., 1.) * dt;
     HHGy[it] *= -complex(0., 1.) * dt;
     Dx[it] = HHGx[it].real();
     Dy[it] = HHGy[it].real();
-    if (it % 100 ==0) printf("HHGprogress: %f\n", 1.0 * it /nt);
+    if (it % 1000 ==0) printf("HHGprogress: %f\n", 1.0 * it /nt);
   }
 
 }
