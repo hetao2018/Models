@@ -1,5 +1,5 @@
 #include <cstdio>
-
+#include <math.h>
 // define the parameter of fundamental electric field
 #define w0 0.057
 //#define E0 0.08
@@ -9,7 +9,7 @@
 // define the parameter of harmonic electric field
 #define w1 0.114
 //#define E1 0.046 //conversion efficiency ~30%
-#define A1 0.4 //0.4
+//#define A1 0.4 //0.4
 #define nc1 48
 
 // define the relative relationship of fundamental&second electric field
@@ -42,7 +42,7 @@ void Creation_Time_Grid (double* time){
 //Creation_Time_Grid
 
 //Creation_Potential
-void Creation_Potential (double* time, double* AfP, double* AsP, double* AfS, double* AsS, double Delta){
+void Creation_Potential (double* time, double* AfP, double* AsP, double* AfS, double* AsS, double Delta, double A1){
 
   //# fundamental vector potential
   double duration0 = 2. * M_PI / w0 * nc0;
@@ -80,7 +80,7 @@ void Creation_Potential (double* time, double* AfP, double* AsP, double* AfS, do
 //Creation_Potential
 
 //Creation_Electric_Field
-void Creation_Electric_Field (double* time, double* EfP, double* EsP, double* EfS, double* EsS,double Delta){
+void Creation_Electric_Field (double* time, double* EfP, double* EsP, double* EfS, double* EsS,double Delta, double A1){
 
   //# fundamental electric field
   double duration0 = 2. * M_PI / w0 * nc0;
@@ -156,18 +156,18 @@ void Creation_Electric_Field (double* time, double* EfP, double* EsP, double* Ef
 
 //define Trajectory function
 void Trajectory (double* time, double* AfP, double* AsP, double* AfS, double* AsS, double* EfP, double* EsP,double* EfS, 
-                 double* EsS, double Delta){
+                 double* EsS, double Delta, double A1){
   Creation_Time_Grid(time);
-  Creation_Potential(time, AfP, AsP, AfS, AsS, Delta);
-  Creation_Electric_Field(time, EfP, EsP, EfS, EsS, Delta);
+  Creation_Potential(time, AfP, AsP, AfS, AsS, Delta, A1);
+  Creation_Electric_Field(time, EfP, EsP, EfS, EsS, Delta, A1);
 }
 //define Trajectory function
 
 //coordination transform
 void Transform (double* LabX, double* LabY, double* PolfP, double* PolsP, double* PolfS, double* PolsS){
   for(int it = 0; it < nt; it ++){
-    LabX[it] = PolfP[it];
-    LabY[it] = PolfS[it];
+    LabX[it] = PolfP[it]+PolsP[it];
+    LabY[it] = PolfS[it]+PolsS[it];
   }
 }
 
@@ -230,18 +230,18 @@ void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy
             + psx * (intA1x[it] - intA1x[itp]) + psy * (intA1y[it] - intA1y[itp])
             + 0.5 * (intA2x[it] - intA2x[itp]) + 0.5 * (intA2y[it] - intA2y[itp]) ;
       // S += (0.5*((psx + Ax[itp]) * (psx + Ax[itp]) + (psy + Ay[itp]) * (psy + Ay[itp])) + Ip) * (dt);
-      if (it % 1000 == 0 && itau % 1000 == 0){printf("psx&psy: %f \n ", S);}
-      HHGx[it] += conj(dipolex(psx, psy, Ax[it], Ay[it])) * dipolex(psx,psy,Ax[itp],Ay[itp])*Ex[itp]
+      // if (it % 1000 == 0 && itau % 1000 == 0){printf("psx&psy: %f \n ", S);}
+      HHGx[it] += conj(dipolex(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ay[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
       * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
 
-      HHGy[it] += conj(dipoley(psx, psy, Ax[it], Ay[it])) * dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp]
+      HHGy[it] += conj(dipoley(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ax[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
       * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
     }
     HHGx[it] *= -complex(0., 1.) * dt;
     HHGy[it] *= -complex(0., 1.) * dt;
     Dx[it] = HHGx[it].real();
     Dy[it] = HHGy[it].real();
-    if (it % 1000 ==0) printf("HHGprogress: %f\n", 1.0 * it /nt);
+    if (it % 100 ==0) printf("HHGprogress: %f\n", 1.0 * it /nt);
   }
 
 }
@@ -281,7 +281,8 @@ int main(int argc, char const *argv[]){
 
   double Delta; //the relative time between the fundamental and second harmonic pulse
   //double Phi;  //the angle between the fundamental and second harmonic wave
-
+  double k;  //the radio of I2w / Iw
+  double A1;
   //create dipole
   double* Dx = new double[nt];
   double* Dy = new double[nt];
@@ -289,29 +290,32 @@ int main(int argc, char const *argv[]){
   char filename[256];
   FILE* file0 = fopen("parameter.dat","w");
 
-  for (int i = 0; i < 1; i ++){
+  for (int i = 0; i < 10; i ++){
+      for (int j = 0; j < 30; j ++){
 
-  Delta = 41.3 * 1.35 / 1 * i;
+          Delta = 41.3 * 1.35 / 10 * i;
+          k = j * 0.1;
+          A1 = sqrt(k)*A0/2;
+          //Phi = 0.5 * M_PI / 40 * j;
 
-  //Phi = 0.5 * M_PI / 40 * j;
+          fprintf(file0, "%le %le \n", Delta, k);
 
-  fprintf(file0, "%le \n", Delta);
+          Trajectory(time, AfP, AsP, AfS, AsS, EfP, EsP, EfS, EsS, Delta, A1);
+          //Creation_Alpha(time, Alphaf, Alphas, Delta);
+          Transform(Ax, Ay, AfP, AsP, AfS, AsS);
+          Transform(Ex, Ey, EfP, EsP, EfS, EsS);
+          Prepare_Ain(intA1x, intA1y, intA2x, intA2y, Ax, Ay);
+          //Transform(Alphax, Alphay, Alphaf, Alphas, Phi);
+          HHG(Ax, Ay, Ex, Ey, Dx, Dy, intA1x, intA1y, intA2x, intA2y);
 
-  Trajectory(time, AfP, AsP, AfS, AsS, EfP, EsP, EfS, EsS, Delta);
-  //Creation_Alpha(time, Alphaf, Alphas, Delta);
-  Transform(Ax, Ay, AfP, AsP, AfS, AsS);
-  Transform(Ex, Ey, EfP, EsP, EfS, EsS);
-  Prepare_Ain(intA1x, intA1y, intA2x, intA2y, Ax, Ay);
-  //Transform(Alphax, Alphay, Alphaf, Alphas, Phi);
-  HHG(Ax, Ay, Ex, Ey, Dx, Dy, intA1x, intA1y, intA2x, intA2y);
-
-  sprintf(filename, "HHG_%d.dat", i);
-  FILE* file1 = fopen(filename, "w");
-  for (int it = 0; it < nt; it ++){
-    fprintf(file1, "%le %le %le %le %le %le %le %le %le \n",
-               time[it], Ex[it], Ey[it], Ax[it], Ay[it], Dx[it], Dy[it], intA1x[it], intA1y[it]);
+          sprintf(filename, "HHG_%d_%d.dat", i,j);
+          FILE* file1 = fopen(filename, "w");
+          for (int it = 0; it < nt; it ++){
+            fprintf(file1, "%le %le %le %le %le %le %le %le %le \n",
+                    time[it], Ex[it], Ey[it], Ax[it], Ay[it], Dx[it], Dy[it], intA1x[it], intA1y[it]);
+              }
+            fclose(file1);
       }
-    fclose(file1);
     printf("i = %d\n", i);
   }
 
