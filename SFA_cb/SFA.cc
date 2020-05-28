@@ -17,10 +17,10 @@
 // #define Phi 1.
 
 //global parameter
-#define nt 28001
+#define nt 5001
 #define t0 0.
-#define t1 20000
-#define tc 10000
+#define t1 3000
+#define tc 1500
 //const double dt = (t1-t0)/(nt-1) //1fs=42a.u. 0.6a.u.~0.014fs
 
 #define Ip 0.58
@@ -167,7 +167,7 @@ void Trajectory (double* time, double* AfP, double* AsP, double* AfS, double* As
 void Transform (double* LabX, double* LabY, double* PolfP, double* PolsP, double* PolfS, double* PolsS){
   for(int it = 0; it < nt; it ++){
     LabX[it] = PolfP[it]+PolsP[it];
-    LabY[it] = PolfS[it]+PolsS[it];
+    LabY[it] = PolfS[it]-PolsS[it];
   }
 }
 
@@ -200,7 +200,7 @@ void Prepare_Ain (double* intA1x, double* intA1y, double* intA2x, double* intA2y
 //coordination transform
 //定义计算S方向矩阵元函数
 inline complex dipolex(double px, double py, double Ax, double Ay){
-  double dnom = (px + Ax) * (px + Ax) + (py + Ay)*(py + Ay) + 2 * Ip;
+  double dnom = (px + Ax) * (px + Ax) + (py + Ay) * (py + Ay) + 2 * Ip;
   return -complex(0., 1.) * 11.3137 * pow(2.*Ip, 1.25) * (px + Ax)/(M_PI * dnom * dnom * dnom); 
 }
 //定义计算P方向矩阵元函数
@@ -220,7 +220,7 @@ void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy
     HHGx[it] = 0.;
     HHGy[it] = 0.;
     for (int itau = 1; itau <= it; itau ++){
-          int itp = it - itau; //ionization instant
+      int itp = it - itau; //ionization instant
       double tau = itau * dt;
       //double psx = (Alphax[itp] - Alphax[it]) / (itau * dt);
       //double psy = (Alphay[itp] - Alphay[it]) / (itau * dt);
@@ -230,11 +230,11 @@ void HHG (double* Ax, double* Ay, double* Ex, double* Ey, double* Dx, double* Dy
             + psx * (intA1x[it] - intA1x[itp]) + psy * (intA1y[it] - intA1y[itp])
             + 0.5 * (intA2x[it] - intA2x[itp]) + 0.5 * (intA2y[it] - intA2y[itp]) ;
       // S += (0.5*((psx + Ax[itp]) * (psx + Ax[itp]) + (psy + Ay[itp]) * (psy + Ay[itp])) + Ip) * (dt);
-      // if (it % 1000 == 0 && itau % 1000 == 0){printf("psx&psy: %f \n ", S);}
-      HHGx[it] += conj(dipolex(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ay[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
+      // if (it % 500 == 0 && itau % 500 == 0) printf("psx&psy: %f %f \n ", psx,psy);
+      HHGx[it] += conj (dipolex(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ay[itp]) * Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp]) * Ey[itp])
       * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
 
-      HHGy[it] += conj(dipoley(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ax[itp])*Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp])*Ey[itp])
+      HHGy[it] += conj (dipoley(psx, psy, Ax[it], Ay[it])) * (dipolex(psx,psy,Ax[itp],Ay[itp]) * Ex[itp] + dipoley(psx,psy,Ax[itp],Ay[itp]) * Ey[itp])
       * exp(-complex(0., 1.) * S) * pow(M_PI / (epsilon + complex(0., 1.) * tau / 2.), 1.5);
     }
     HHGx[it] *= -complex(0., 1.) * dt;
@@ -290,11 +290,11 @@ int main(int argc, char const *argv[]){
   char filename[256];
   FILE* file0 = fopen("parameter.dat","w");
 
-  for (int i = 0; i < 10; i ++){
-      for (int j = 0; j < 30; j ++){
+  for (int i = 0; i < 1; i ++){
+      for (int j = 0; j < 1; j ++){
 
           Delta = 41.3 * 1.35 / 10 * i;
-          k = j * 0.1;
+          k = j + 0.3254;
           A1 = sqrt(k)*A0/2;
           //Phi = 0.5 * M_PI / 40 * j;
 
